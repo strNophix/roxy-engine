@@ -18,7 +18,7 @@ impl Parser {
         while !self.eof() && test(self.next_char()) {
             result.push(self.consume_char());
         }
-        return result;
+        result
     }
 
     fn next_char(&self) -> char {
@@ -30,7 +30,7 @@ impl Parser {
         let (_, cur_char) = iter.next().unwrap();
         let (next_pos, _) = iter.next().unwrap_or((1, ' '));
         self.pos += next_pos;
-        return cur_char;
+        cur_char
     }
 
     fn consume_whitespace(&mut self) {
@@ -60,14 +60,14 @@ impl Parser {
                     break;
                 }
                 c => {
-                    if c.is_ascii_alphanumeric() == false {
+                    if !c.is_ascii_alphanumeric() {
                         break;
                     }
                     selector.tag_name = Some(self.parse_identifier());
                 }
             }
         }
-        return selector;
+        selector
     }
 
     fn parse_identifier(&mut self) -> String {
@@ -95,7 +95,7 @@ impl Parser {
                 c => panic!("Unexpected character {} in selector list", c),
             }
         }
-        return selectors;
+        selectors
     }
 
     fn parse_declarations(&mut self) -> Vec<Declaration> {
@@ -107,19 +107,16 @@ impl Parser {
                 self.consume_char();
                 break;
             }
-            let identifier = self.parse_identifier();
+            let name = self.parse_identifier();
             self.consume_whitespace();
             assert!(self.consume_char() == ':');
             self.consume_whitespace();
             let value = self.parse_declaration_value();
-            result.push(Declaration {
-                name: identifier,
-                value: value,
-            });
+            result.push(Declaration { name, value });
             self.consume_whitespace();
             assert!(self.consume_char() == ';');
         }
-        return result;
+        result
     }
 
     fn parse_declaration_value(&mut self) -> Value {
@@ -138,7 +135,7 @@ impl Parser {
 
     fn parse_color(&mut self) -> Value {
         assert_eq!(self.consume_char(), '#');
-        Value::Color(ColorValue::RGBA(
+        Value::Color(ColorValue::Rgba(
             self.parse_hex_pair(),
             self.parse_hex_pair(),
             self.parse_hex_pair(),
@@ -151,10 +148,7 @@ impl Parser {
     }
 
     fn parse_float(&mut self) -> f32 {
-        let s = self.consume_while(|c| match c {
-            '0'..='9' | '.' => true,
-            _ => false,
-        });
+        let s = self.consume_while(|c| matches!(c, '0'..='9' | '.'));
         s.parse().unwrap()
     }
 
@@ -176,10 +170,7 @@ impl Parser {
 }
 
 pub fn parse(input: String) -> StyleSheet {
-    let mut parser = Parser {
-        pos: 0,
-        input: input,
-    };
+    let mut parser = Parser { pos: 0, input };
     StyleSheet {
         rules: parser.parse_rules(),
     }
@@ -204,7 +195,7 @@ impl fmt::Display for Selector {
                 if let Some(tag_name) = &selector.tag_name {
                     write!(f, "{}", tag_name).unwrap();
                 }
-                if selector.classes.len() > 0 {
+                if selector.classes.is_empty() {
                     write!(f, ".{}", selector.classes.join(".")).unwrap();
                 }
                 if let Some(id) = &selector.id {
@@ -241,13 +232,13 @@ impl fmt::Display for Value {
 
 #[derive(Debug, Clone)]
 enum ColorValue {
-    RGBA(u8, u8, u8, u8),
+    Rgba(u8, u8, u8, u8),
 }
 
 impl fmt::Display for ColorValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
-            Self::RGBA(r, g, b, a) => write!(f, "rgba({}, {}, {}, {})", r, g, b, a),
+            Self::Rgba(r, g, b, a) => write!(f, "rgba({}, {}, {}, {})", r, g, b, a),
         }
     }
 }
@@ -309,7 +300,7 @@ pub struct StyleSheet {
 
 impl fmt::Display for StyleSheet {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.rules.len() > 0 {
+        if self.rules.is_empty() {
             let rules = self
                 .rules
                 .iter()

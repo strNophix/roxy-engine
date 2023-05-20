@@ -27,7 +27,7 @@ impl Parser<'_> {
         let (_, cur_char) = iter.next().unwrap();
         let (next_pos, _) = iter.next().unwrap_or((1, ' '));
         self.pos += next_pos;
-        return cur_char;
+        cur_char
     }
 
     fn consume_while<F>(&mut self, test: F) -> String
@@ -38,7 +38,7 @@ impl Parser<'_> {
         while !self.eof() && test(self.next_char()) {
             result.push(self.consume_char());
         }
-        return result;
+        result
     }
 
     fn consume_whitespace(&mut self) {
@@ -83,7 +83,7 @@ impl Parser<'_> {
 
         if tag_name == "style" {
             let inner_node = children.first().unwrap();
-            if let NodeType::TextNode(styling) = &inner_node.node_type {
+            if let NodeType::Text(styling) = &inner_node.node_type {
                 self.context.load_css(styling.clone());
             }
         }
@@ -94,7 +94,7 @@ impl Parser<'_> {
         assert!(self.parse_tag_name() == tag_name);
         assert!(self.consume_char() == '>');
 
-        return element(tag_name, attrs, children);
+        element(tag_name, attrs, children)
     }
 
     fn parse_comment(&mut self) -> Node {
@@ -127,13 +127,13 @@ impl Parser<'_> {
             }
 
             let (name, value) = self.parse_attr();
-            if value.len() > 0 {
+            if value.is_empty() {
                 attributes.insert(name, AttrValue::Text(value));
             } else {
                 attributes.insert(name, AttrValue::Implicit);
             }
         }
-        return AttrMap(attributes);
+        AttrMap(attributes)
     }
 
     fn parse_attr_value(&mut self) -> String {
@@ -141,7 +141,7 @@ impl Parser<'_> {
         assert!(open_quote == '"' || open_quote == '\'');
         let value = self.consume_while(|c| c != open_quote);
         assert!(self.consume_char() == open_quote);
-        return value;
+        value
     }
 
     fn parse_attr(&mut self) -> (String, String) {
@@ -151,7 +151,7 @@ impl Parser<'_> {
             return (name, value);
         }
 
-        return (name, String::new());
+        (name, String::new())
     }
 
     fn parse_nodes(&mut self) -> Vec<Node> {
@@ -163,15 +163,15 @@ impl Parser<'_> {
             }
             nodes.push(self.parse_node());
         }
-        return nodes;
+        nodes
     }
 }
 
-pub fn parse(source: String, context: &mut DocumentData) -> Node {
+pub fn parse(input: String, context: &mut DocumentData) -> Node {
     let mut parser = Parser {
         pos: 0,
-        input: source,
-        context: context,
+        input,
+        context,
     };
     let mut nodes = parser.parse_nodes();
 

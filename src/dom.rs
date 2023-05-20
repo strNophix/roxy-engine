@@ -22,7 +22,7 @@ impl fmt::Display for AttrMap {
             .iter()
             .map(|(key, value)| match &value {
                 AttrValue::Text(text) => format!("{}=\"{}\"", key, text),
-                AttrValue::Implicit => format!("{}", key),
+                AttrValue::Implicit => key.to_string(),
             })
             .collect::<Vec<String>>();
         write!(f, "{}", i.join(" "))
@@ -38,10 +38,10 @@ pub struct ElementData {
 
 #[derive(Debug, Clone)]
 pub enum NodeType {
-    ElementNode(ElementData),
-    TextNode(String),
-    CommentNode(String),
-    DocumentNode(DocumentData),
+    Element(ElementData),
+    Text(String),
+    Comment(String),
+    Document(DocumentData),
 }
 
 #[derive(Debug, Clone)]
@@ -53,14 +53,14 @@ impl Node {
     fn pretty_print(&self, f: &mut fmt::Formatter<'_>, indent: usize) {
         let prepadding = "  ".repeat(indent);
         match &self.node_type {
-            NodeType::ElementNode(data) => {
+            NodeType::Element(data) => {
                 write!(f, "{}<{}", prepadding, data.tag_name).unwrap();
 
-                if data.attributes.0.len() > 0 {
+                if data.attributes.0.is_empty() {
                     write!(f, " {}", data.attributes).unwrap();
                 }
 
-                if data.child_nodes.len() == 0 {
+                if data.child_nodes.is_empty() {
                     writeln!(f, "></{}>", data.tag_name).unwrap();
                     return;
                 }
@@ -74,11 +74,11 @@ impl Node {
 
                 writeln!(f, "{}</{}>", prepadding, data.tag_name).unwrap();
             }
-            NodeType::TextNode(text) => {
+            NodeType::Text(text) => {
                 writeln!(f, "{}{}", prepadding, text).unwrap();
             }
-            NodeType::CommentNode(text) => writeln!(f, "{}<!-- {} -->", prepadding, text).unwrap(),
-            NodeType::DocumentNode(_) => {}
+            NodeType::Comment(text) => writeln!(f, "{}<!-- {} -->", prepadding, text).unwrap(),
+            NodeType::Document(_) => {}
         }
     }
 }
@@ -116,13 +116,13 @@ impl DocumentData {
 
 pub fn text(data: String) -> Node {
     Node {
-        node_type: NodeType::TextNode(data),
+        node_type: NodeType::Text(data),
     }
 }
 
 pub fn element(name: String, attrs: AttrMap, children: Vec<Node>) -> Node {
     Node {
-        node_type: NodeType::ElementNode(ElementData {
+        node_type: NodeType::Element(ElementData {
             tag_name: name,
             attributes: attrs,
             child_nodes: children,
@@ -132,7 +132,7 @@ pub fn element(name: String, attrs: AttrMap, children: Vec<Node>) -> Node {
 
 pub fn comment(text: String) -> Node {
     Node {
-        node_type: NodeType::CommentNode(text),
+        node_type: NodeType::Comment(text),
     }
 }
 
@@ -140,6 +140,6 @@ pub fn parse(document: String) -> Node {
     let mut context = DocumentData::new();
     context.load_document(document);
     Node {
-        node_type: NodeType::DocumentNode(context),
+        node_type: NodeType::Document(context),
     }
 }
