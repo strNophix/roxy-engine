@@ -1,14 +1,15 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 
-use crate::dom::{comment, element, text, AttrMap, AttrValue, Node};
+use crate::dom::{comment, element, text, AttrMap, AttrValue, DocumentData, Node, NodeType};
 
-struct Parser {
+struct Parser<'a> {
     pos: usize,
     input: String,
+    context: &'a mut DocumentData,
 }
 
-impl Parser {
+impl Parser<'_> {
     fn next_char(&self) -> char {
         self.input[self.pos..].chars().next().unwrap()
     }
@@ -79,6 +80,13 @@ impl Parser {
 
         // Contents.
         let children = self.parse_nodes();
+
+        if tag_name == "style" {
+            let inner_node = children.first().unwrap();
+            if let NodeType::TextNode(styling) = &inner_node.node_type {
+                self.context.load_css(styling.clone());
+            }
+        }
 
         // Closing tag.
         assert!(self.consume_char() == '<');
@@ -159,10 +167,11 @@ impl Parser {
     }
 }
 
-pub fn parse(source: String) -> Node {
+pub fn parse(source: String, context: &mut DocumentData) -> Node {
     let mut parser = Parser {
         pos: 0,
         input: source,
+        context: context,
     };
     let mut nodes = parser.parse_nodes();
 
